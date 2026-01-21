@@ -53,7 +53,6 @@ def load_download_items():
             with open(DOWNLOAD_ITEMS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         else:
-        else:
             # Create default empty file if it doesn't exist
             default_items = []
             with open(DOWNLOAD_ITEMS_FILE, "w", encoding="utf-8") as f:
