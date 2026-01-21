@@ -1,8 +1,8 @@
 import json
 import sys
 import threading
-from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+
+from typing import Any, Dict, Optional
 from pathlib import Path
 
 import customtkinter as ctk
