@@ -16,42 +16,28 @@ DEPENDENCIES_FILE = Path(__file__).parent / "dependencies.json"
 LOGS_DIR = Path(__file__).parent / "logs"
 
 
-DEFAULT_CONFIG: Dict[str, Any] = {
-    "app_name": "Donut Downloader",
-    "version": "1.0.0",
-    "check_update_url": "https://api.github.com/repos/R3TR1X/donutpluginutils/releases/latest",
-    "auto_check_update": False,
-    "window_width": 720,
-    "window_height": 520,
-    "theme": "dark",
-    "color_theme": "blue",
-    # persisted UI state
-    "last_plugin_dir": "",
-    "last_selected_plugins": [],
-}
+
 
 
 def load_config() -> Dict[str, Any]:
-    """Load config.json (merged with defaults)."""
-    cfg = dict(DEFAULT_CONFIG)
+    """Load config.json."""
+    cfg = {}
     try:
         if CONFIG_FILE.exists():
-            data = json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                cfg.update(data)
+            text = CONFIG_FILE.read_text(encoding="utf-8")
+            if text.strip():
+                data = json.loads(text)
+                if isinstance(data, dict):
+                    cfg = data
     except Exception:
-        # If config is corrupt, fall back to defaults silently; user can re-save from Settings.
         pass
-    # normalize types
-    try:
-        cfg["window_width"] = int(cfg.get("window_width", DEFAULT_CONFIG["window_width"]))
-        cfg["window_height"] = int(cfg.get("window_height", DEFAULT_CONFIG["window_height"]))
-    except Exception:
-        cfg["window_width"] = DEFAULT_CONFIG["window_width"]
-        cfg["window_height"] = DEFAULT_CONFIG["window_height"]
-    cfg["auto_check_update"] = bool(cfg.get("auto_check_update", False))
-    if not isinstance(cfg.get("last_selected_plugins"), list):
-        cfg["last_selected_plugins"] = []
+    
+    # Ensure critical keys exist to prevent crashes if config is empty/missing
+    if "window_width" not in cfg: cfg["window_width"] = 720
+    if "window_height" not in cfg: cfg["window_height"] = 520
+    if "version" not in cfg: cfg["version"] = "1.0.0"
+    if "auto_check_update" not in cfg: cfg["auto_check_update"] = False
+    
     return cfg
 
 
@@ -67,21 +53,9 @@ def load_download_items():
             with open(DOWNLOAD_ITEMS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         else:
-            # Create default file if it doesn't exist
-            default_items = [
-                {
-                    "name": "Example PDF",
-                    "url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                },
-                {
-                    "name": "Example Image",
-                    "url": "https://via.placeholder.com/640x360.png",
-                },
-                {
-                    "name": "Sample Text",
-                    "url": "https://www.w3.org/TR/PNG/iso_8859-1.txt",
-                },
-            ]
+        else:
+            # Create default empty file if it doesn't exist
+            default_items = []
             with open(DOWNLOAD_ITEMS_FILE, "w", encoding="utf-8") as f:
                 json.dump(default_items, f, indent=4, ensure_ascii=False)
             return default_items
