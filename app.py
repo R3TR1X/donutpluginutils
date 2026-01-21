@@ -944,7 +944,8 @@ class DownloaderApp(ctk.CTk):
             latest = str(data.get("tag_name") or data.get("name") or "").strip()
             html = str(data.get("html_url") or "")
         except Exception as exc:
-            self.after(0, lambda: messagebox.showerror("Update check", f"Update check failed:\n{exc}"))
+            error_msg = str(exc)
+            self.after(0, lambda: messagebox.showerror("Update check", f"Update check failed:\n{error_msg}"))
             return
 
         current = str(self.config_data.get("version", "1.0.0"))
