@@ -15,6 +15,8 @@ CONFIG_FILE = Path(__file__).parent / "config.json"
 DEPENDENCIES_FILE = Path(__file__).parent / "dependencies.json"
 LOGS_DIR = Path(__file__).parent / "logs"
 
+UPDATE_CHECK_URL = "https://api.github.com/repos/R3TR1X/donutpluginutils/releases/latest"
+
 
 
 
@@ -930,7 +932,7 @@ class DownloaderApp(ctk.CTk):
         threading.Thread(target=self._check_for_update, daemon=True).start()
 
     def _check_for_update(self, show_up_to_date: bool = True):
-        url = str(self.config_data.get("check_update_url", "")).strip()
+        url = UPDATE_CHECK_URL
         if not url:
             self.after(0, lambda: messagebox.showerror("Update check", "No update URL set in config.json."))
             return
@@ -1054,47 +1056,6 @@ class DownloaderApp(ctk.CTk):
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _auto_check_update_worker(self):
-        try:
-            self._check_for_update(show_up_to_date=False)
-        except Exception:
-            pass
-
-    def check_for_update(self):
-        # Run in background so UI stays responsive
-        # Network check first
-        if not check_internet_connection():
-             CustomAlertDialog(self, self.cursor_colors, "Error", "Please enable wifi")
-             return
-        threading.Thread(target=self._check_for_update, daemon=True).start()
-
-    def _check_for_update(self, show_up_to_date: bool = True):
-        url = str(self.config_data.get("check_update_url", "")).strip()
-        if not url:
-            self.after(0, lambda: messagebox.showerror("Update check", "No update URL set in config.json."))
-            return
-
-        try:
-            resp = requests.get(url, timeout=15, headers={"Accept": "application/vnd.github+json"})
-            resp.raise_for_status()
-            data = resp.json()
-            latest = str(data.get("tag_name") or data.get("name") or "").strip()
-            html = str(data.get("html_url") or "")
-        except Exception as exc:
-            # Fix closure scoping issue by capturing string immediately
-            error_msg = str(exc)
-            self.after(0, lambda: messagebox.showerror("Update check", f"Update check failed:\n{error_msg}"))
-            return
-
-        current = str(self.config_data.get("version", DEFAULT_CONFIG["version"]))
-        if latest and latest != current:
-            msg = f"Update available!\n\nCurrent: {current}\nLatest:  {latest}"
-            if html:
-                msg += f"\n\nRelease page:\n{html}"
-            self.after(0, lambda: messagebox.showinfo("Update check", msg))
-        else:
-            if show_up_to_date:
-                self.after(0, lambda: messagebox.showinfo("Update check", f"You are up to date.\n\nVersion: {current}"))
 
 
 def main():

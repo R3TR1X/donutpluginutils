@@ -1,7 +1,6 @@
 {
     "app_name": "Donut Downloader",
     "version": "1.0.0",
-    "check_update_url": "https://api.github.com/repos/R3TR1X/donutpluginutils/releases/latest",
     "auto_check_update": false,
     "window_width": 720,
     "window_height": 520,
