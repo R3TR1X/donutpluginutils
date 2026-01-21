@@ -853,7 +853,7 @@ class DownloaderApp(ctk.CTk):
             # Let's assume for this specific tool 'Donut Downloader', we might be grabbing from a known location.
             # But relying on the release data is best.
             
-            current = str(self.config_data.get("version", DEFAULT_CONFIG["version"]))
+            current = str(self.config_data.get("version", "1.0.0"))
             
             if latest and latest != current:
                 self.after(0, lambda: self._update_ui_available(latest, download_url))
@@ -946,7 +946,7 @@ class DownloaderApp(ctk.CTk):
             self.after(0, lambda: messagebox.showerror("Update check", f"Update check failed:\n{exc}"))
             return
 
-        current = str(self.config_data.get("version", DEFAULT_CONFIG["version"]))
+        current = str(self.config_data.get("version", "1.0.0"))
         if latest and latest != current:
             msg = f"Update available!\n\nCurrent: {current}\nLatest:  {latest}"
             if html:
