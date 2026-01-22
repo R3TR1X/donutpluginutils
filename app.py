@@ -15,6 +15,12 @@ CONFIG_FILE = Path(__file__).parent / "config.json"
 DEPENDENCIES_FILE = Path(__file__).parent / "dependencies.json"
 LOGS_DIR = Path(__file__).parent / "logs"
 
+try:
+    from modrinth import ModrinthClient
+except ImportError:
+    ModrinthClient = None
+
+
 UPDATE_CHECK_URL = "https://api.github.com/repos/R3TR1X/donutpluginutils/releases/latest"
 
 
@@ -742,6 +748,27 @@ class DownloaderApp(ctk.CTk):
         )
         self.update_button.pack(pady=(0, 20), anchor="center")
 
+        # Developer/Advanced Tools
+        if ModrinthClient:
+            dev_frame = ctk.CTkFrame(settings, fg_color=self.cursor_colors["frame_dark"])
+            dev_frame.pack(fill="x", padx=12, pady=(0, 12))
+            
+            ctk.CTkLabel(
+                dev_frame,
+                text="Developer Tools",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=self.cursor_colors["text_light"]
+            ).pack(pady=(12, 8))
+            
+            ctk.CTkButton(
+                dev_frame,
+                text="Manage Dependencies",
+                command=self.open_dependency_manager,
+                fg_color=self.cursor_colors["button"],
+                hover_color=self.cursor_colors["button_hover"]
+            ).pack(pady=(0, 12), anchor="center")
+
+
         content = ctk.CTkFrame(settings, fg_color=self.cursor_colors["frame_dark"])
         content.pack(fill="both", expand=True, padx=12, pady=12)
 
@@ -817,6 +844,164 @@ class DownloaderApp(ctk.CTk):
             hover_color=self.cursor_colors["button_hover"],
         ).pack(side="right", padx=(6, 0), expand=True, fill="x")
 
+    def open_dependency_manager(self):
+        """Open a window to manage/fetch dependencies via Modrinth."""
+        mgr = ctk.CTkToplevel(self)
+        mgr.title("Dependency Manager")
+        mgr.geometry("500x450")
+        mgr.grab_set()
+        mgr.configure(fg_color=self.cursor_colors["bg_dark"])
+        
+        # State tracking
+        state = {
+            "unsaved": False,
+            "deps": load_dependencies()
+        }
+        if isinstance(state["deps"], list):
+            state["deps"] = {}
+
+        ctk.CTkLabel(
+            mgr,
+            text="Modrinth Dependency Manager",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.cursor_colors["text_light"]
+        ).pack(pady=15)
+
+        # Input for Slug
+        input_frame = ctk.CTkFrame(mgr, fg_color="transparent")
+        input_frame.pack(fill="x", padx=20, pady=5)
+        
+        ctk.CTkLabel(
+            input_frame, 
+            text="Project Slug/ID:",
+            text_color=self.cursor_colors["text_light"]
+        ).pack(side="left", padx=(0, 10))
+        
+        slug_entry = ctk.CTkEntry(
+            input_frame, 
+            width=200,
+            fg_color=self.cursor_colors["entry_bg"],
+            text_color=self.cursor_colors["text_light"]
+        )
+        slug_entry.pack(side="left", fill="x", expand=True)
+
+        # Output area
+        out_text = ctk.CTkTextbox(
+            mgr,
+            fg_color=self.cursor_colors["entry_bg"],
+            text_color=self.cursor_colors["text_light"]
+        )
+        out_text.pack(fill="both", expand=True, padx=20, pady=10)
+
+        def log(msg):
+            out_text.insert("end", str(msg) + "\n")
+            out_text.see("end")
+
+        def save_logic():
+            try:
+                with open(DEPENDENCIES_FILE, "w", encoding="utf-8") as f:
+                    json.dump(state["deps"], f, indent=4)
+                state["unsaved"] = False
+                log("Dependencies saved successfully.")
+                return True
+            except Exception as e:
+                log(f"Failed to save: {e}")
+                return False
+
+        def fetch_and_save():
+            slug = slug_entry.get().strip()
+            if not slug:
+                log("Please enter a slug.")
+                return
+            
+            log(f"Fetching and saving dependencies for '{slug}'...")
+
+            def worker():
+                try:
+                    client = ModrinthClient()
+                    # 1. Get Project
+                    project = client.get_project(slug)
+                    if not project:
+                        mgr.after(0, lambda: log(f"Project '{slug}' not found."))
+                        return
+                    
+                    p_slug = project["slug"]
+                    mgr.after(0, lambda: log(f"Found Project: {project['title']} ({p_slug})"))
+
+                    # 2. Get Versions
+                    versions = client.get_versions(p_slug)
+                    if not versions:
+                        mgr.after(0, lambda: log("No versions found."))
+                        return
+                    
+                    latest = versions[0]
+                    mgr.after(0, lambda: log(f"Latest Version: {latest['name']}"))
+
+                    # 3. Get Dependencies
+                    deps = latest.get("dependencies", [])
+                    
+                    valid_deps = []
+                    for d in deps:
+                        dep_proj_id = d.get("project_id")
+                        if dep_proj_id:
+                            dep_proj = client.get_project(dep_proj_id)
+                            name = dep_proj["slug"] if dep_proj else dep_proj_id
+                            valid_deps.append(name)
+                            mgr.after(0, lambda: log(f" - Found dependency: {name} ({d.get('dependency_type')})"))
+
+                    if valid_deps:
+                        # Update local state
+                        mgr.after(0, lambda: update_state(p_slug, valid_deps))
+                        # Save immediately
+                        mgr.after(0, lambda: perform_save())
+                    else:
+                        mgr.after(0, lambda: log("No direct project dependencies found to add."))
+
+                except Exception as e:
+                    mgr.after(0, lambda: log(f"Error: {e}"))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        def perform_save():
+            if save_logic():
+                # Success
+                pass
+
+        def update_state(slug, new_deps):
+            state["deps"][slug] = new_deps
+            # We don't mark unsaved=True here because we save immediately after this in the worker flow
+            # But if save fails, it effectively remains modified in memory.
+            # For the combined button, we treat it as atomic.
+    
+        def on_close():
+            # Since we save automatically, we only check if there was a lingering failure or manual edit (not yet impl)
+            # For now, just close.
+            mgr.destroy()
+
+        mgr.protocol("WM_DELETE_WINDOW", on_close)
+
+        btn_frame = ctk.CTkFrame(mgr, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=10)
+
+        # Buttons: Fetch & Save (Left), Close (Right)
+        ctk.CTkButton(
+            btn_frame,
+            text="Fetch & Save",
+            command=fetch_and_save,
+            fg_color=self.cursor_colors["button"],
+            hover_color=self.cursor_colors["button_hover"],
+            width=150
+        ).pack(side="left", padx=(0, 10))
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Close",
+            command=on_close,
+            fg_color=self.cursor_colors["button"],
+            hover_color=self.cursor_colors["button_hover"],
+            width=100
+        ).pack(side="right")
+    
     def check_update_in_settings(self):
         self.update_button.configure(state="disabled", text="Checking...")
         threading.Thread(target=self._check_update_worker, daemon=True).start()
