@@ -298,7 +298,7 @@ class YesNoDialog(ctk.CTkToplevel):
         self.destroy()
 
 class DownloadConfirmDialog(ctk.CTkToplevel):
-    def __init__(self, parent, colors, items, title="Confirm Download"):
+    def __init__(self, parent, colors, items, deps_map=None, title="Confirm Download"):
         super().__init__(parent)
         self.colors = colors
         self.items = items
@@ -329,12 +329,28 @@ class DownloadConfirmDialog(ctk.CTkToplevel):
         list_frame.pack(fill="both", expand=True, pady=(0, 20))
 
         for item in self.items:
+            # Main item
             ctk.CTkLabel(
                 list_frame,
                 text=f"• {item}",
                 text_color=self.colors["text_light"],
-                anchor="w"
-            ).pack(fill="x", padx=10, pady=2)
+                anchor="w",
+                font=ctk.CTkFont(size=14, weight="bold")
+            ).pack(fill="x", padx=10, pady=(4, 0))
+
+            # Dependencies
+            if deps_map and item in deps_map:
+                deps = deps_map[item]
+                if deps:
+                    for dep in deps:
+                        ctk.CTkLabel(
+                            list_frame,
+                            text=f"   └── {dep}",
+                            text_color="#a0a0a0", # Dimmer color for deps
+                            anchor="w",
+                            font=ctk.CTkFont(size=12) # Smaller font
+                        ).pack(fill="x", padx=10, pady=0)
+
 
         btn_frame = ctk.CTkFrame(content, fg_color="transparent")
         btn_frame.pack(fill="x")
@@ -1167,7 +1183,11 @@ class DownloaderApp(ctk.CTk):
 
         # Show confirmation dialog
         names_only = [item["name"] for item in items_to_download]
-        dlg = DownloadConfirmDialog(self, self.cursor_colors, names_only)
+        
+        # Load dependencies early for the dialog
+        deps_map = load_dependencies()
+        
+        dlg = DownloadConfirmDialog(self, self.cursor_colors, names_only, deps_map=deps_map)
         self.wait_window(dlg)
         
         if not dlg.action:
@@ -1175,7 +1195,7 @@ class DownloaderApp(ctk.CTk):
 
         # Resolve dependencies if requested
         if dlg.action == "dependencies":
-            deps_map = load_dependencies() # dict matching name -> list of dep names
+            # map loaded above
             extra_items = []
             
             # Helper to find item by name
