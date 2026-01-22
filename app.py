@@ -10,9 +10,9 @@ import requests
 from tkinter import filedialog, messagebox
 
 
-DOWNLOAD_ITEMS_FILE = Path(__file__).parent / "plugins.json"
-CONFIG_FILE = Path(__file__).parent / "config.json"
-DEPENDENCIES_FILE = Path(__file__).parent / "dependencies.json"
+DOWNLOAD_ITEMS_FILE = Path(__file__).parent / "jsons" / "plugins.json"
+CONFIG_FILE = Path(__file__).parent / "jsons" / "config.json"
+DEPENDENCIES_FILE = Path(__file__).parent / "jsons" / "dependencies.json"
 LOGS_DIR = Path(__file__).parent / "logs"
 
 try:
